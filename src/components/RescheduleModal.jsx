@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { X, Calendar, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/AppContext';
 
@@ -9,6 +9,7 @@ const RescheduleModal = ({ appointment, doctor, onClose, onReschedule }) => {
   const [selectedDay, setSelectedDay] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
 
+  // --- UPDATED LOGIC TO MATCH SPRING BOOT DATETIME ---
   const handleReschedule = () => {
     if (selectedDay && selectedTime) {
       const today = new Date();
@@ -22,14 +23,15 @@ const RescheduleModal = ({ appointment, doctor, onClose, onReschedule }) => {
       const appointmentDate = new Date(today);
       appointmentDate.setDate(today.getDate() + daysToAdd);
 
-      onReschedule(appointment.id, appointmentDate.toISOString().split('T')[0], selectedTime);
+      // Pass the ID, Date Object, and Time string to PatientDashboard
+      onReschedule(appointment.id, appointmentDate, selectedTime);
       onClose();
     }
   };
 
   const selectedDaySlots = doctor?.availableSlots.find(slot => slot.day === selectedDay);
 
-  const getAppointmentDate = (dayName) => {
+  const getAppointmentDateStr = (dayName) => {
     const today = new Date();
     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const targetDayIndex = daysOfWeek.indexOf(dayName);
@@ -114,18 +116,20 @@ const RescheduleModal = ({ appointment, doctor, onClose, onReschedule }) => {
                 </h3>
                 <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
                   {selectedDaySlots?.times.map((time) => {
-                    const appointmentDate = getAppointmentDate(selectedDay);
-                    const slotBooked = isSlotBooked(doctor.id, appointmentDate, time) &&
-                      !(appointment.date === appointmentDate && appointment.time === time);
+                    const appointmentDateStr = getAppointmentDateStr(selectedDay);
+                    
+                    // --- GREY OUT LOGIC ---
+                    const slotBooked = isSlotBooked(doctor.id, appointmentDateStr, time);
+                    const isCurrentSlot = (appointment.dateTime?.startsWith(appointmentDateStr) && appointment.dateTime?.includes(time));
                     
                     return (
                       <button
                         key={time}
                         onClick={() => !slotBooked && setSelectedTime(time)}
-                        disabled={slotBooked}
+                        disabled={slotBooked && !isCurrentSlot}
                         className={`p-3 rounded-lg border-2 transition-all font-semibold text-sm ${
-                          slotBooked
-                            ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
+                          slotBooked && !isCurrentSlot
+                            ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed opacity-50'
                             : selectedTime === time
                             ? 'border-[#FF6B6B] bg-[#FF6B6B] text-white shadow-md transform scale-105'
                             : 'border-gray-100 hover:border-[#FF6B6B] bg-white text-gray-700 hover:shadow-md hover:text-[#FF6B6B]'
@@ -163,4 +167,5 @@ const RescheduleModal = ({ appointment, doctor, onClose, onReschedule }) => {
   );
 };
 
+// --- CRITICAL FIX: EXPORT DEFAULT ---
 export default RescheduleModal;

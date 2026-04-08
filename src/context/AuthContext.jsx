@@ -14,63 +14,46 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Check if user is already logged in on page refresh
   useEffect(() => {
-    const user = localStorage.getItem('currentUser');
-    if (user) {
-      setCurrentUser(JSON.parse(user));
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('currentUser');
+      }
     }
     setLoading(false);
   }, []);
 
-  const login = (email, password) => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const user = users.find(u => u.email === email && u.password === password);
-    
-    if (user) {
-      const { password, ...userWithoutPassword } = user;
-      setCurrentUser(userWithoutPassword);
-      localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-      return { success: true };
+  /**
+   * UPDATED: This allows Register and Login components 
+   * to save the user data returned from Spring Boot.
+   */
+  const setUser = (userData) => {
+    if (userData) {
+      // Remove sensitive info just in case
+      const { password, ...safeUser } = userData;
+      setCurrentUser(safeUser);
+      localStorage.setItem('currentUser', JSON.stringify(safeUser));
     }
-    return { success: false, error: 'Invalid email or password' };
-  };
-
-  const register = (userData) => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    
-    if (users.find(u => u.email === userData.email)) {
-      return { success: false, error: 'Email already registered' };
-    }
-
-    const newUser = {
-      id: Date.now(),
-      ...userData,
-      createdAt: new Date().toISOString()
-    };
-
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
-
-    const { password, ...userWithoutPassword } = newUser;
-    setCurrentUser(userWithoutPassword);
-    localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-
-    return { success: true };
   };
 
   const logout = () => {
     setCurrentUser(null);
     localStorage.removeItem('currentUser');
+    // Clear any other session data if needed
   };
 
   const value = {
     currentUser,
-    login,
-    register,
+    setUser, // Exporting this for your Login/Register components
     logout,
     isAuthenticated: !!currentUser
   };
 
+  // Prevent flicker while checking localStorage
   if (loading) {
     return null;
   }
